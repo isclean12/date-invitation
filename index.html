@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Приглашение</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 50%, #ffd1dc 100%);
+    font-family: 'Playfair Display', serif;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    min-height: 100dvh;
+  }
+
+  #hearts-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ---------- Конверт ---------- */
+  .envelope-screen {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .envelope-screen.hidden {
+    opacity: 0;
+    transform: scale(0.8);
+    pointer-events: none;
+  }
+
+  .envelope {
+    position: relative;
+    width: clamp(220px, 60vw, 320px);
+    height: clamp(150px, 40vw, 220px);
+    cursor: pointer;
+    animation: float 2.4s ease-in-out infinite;
+    transition: transform 0.3s ease;
+  }
+  .envelope:hover { transform: scale(1.05); }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+  }
+
+  .envelope-body {
+    position: absolute;
+    inset: 0;
+    background: #fff0f3;
+    border-radius: 10px;
+    box-shadow: 0 15px 40px rgba(180, 40, 60, 0.35);
+    overflow: hidden;
+  }
+
+  .envelope-body::before,
+  .envelope-body::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+  }
+  .envelope-body::before {
+    left: 0;
+    border-width: 0 0 clamp(75px, 20vw, 110px) clamp(110px, 30vw, 160px);
+    border-color: transparent transparent #ffd1dc transparent;
+  }
+  .envelope-body::after {
+    right: 0;
+    border-width: 0 clamp(110px, 30vw, 160px) clamp(75px, 20vw, 110px) 0;
+    border-color: transparent transparent #ffd1dc transparent;
+  }
+
+  .envelope-flap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60%;
+    background: #ffb3c1;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: top center;
+    transition: transform 0.7s ease;
+    border-radius: 10px 10px 0 0;
+    z-index: 3;
+    backface-visibility: hidden;
+  }
+  .envelope.open .envelope-flap {
+    transform: rotateX(180deg);
+  }
+
+  .envelope-seal {
+    position: absolute;
+    top: 48%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(1.6rem, 5vw, 2.2rem);
+    z-index: 4;
+    transition: opacity 0.4s ease;
+  }
+  .envelope.open .envelope-seal { opacity: 0; }
+
+  .envelope-note {
+    position: absolute;
+    left: 50%;
+    bottom: 10%;
+    transform: translate(-50%, 0);
+    width: 80%;
+    height: 70%;
+    background: #fffdf7;
+    border-radius: 6px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    opacity: 0;
+    z-index: 2;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .envelope.open .envelope-note {
+    opacity: 1;
+    animation: notePeek 1.2s ease forwards;
+  }
+  @keyframes notePeek {
+    0%   { transform: translate(-50%, 0); }
+    100% { transform: translate(-50%, -40%); }
+  }
+
+  .note-text {
+    font-family: 'Caveat', cursive;
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    color: #e63946;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease 0.4s, transform 0.5s ease 0.4s;
+    padding: 0 10px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .envelope.open .note-text {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .hint {
+    margin-top: clamp(20px, 5vh, 40px);
+    color: #fff;
+    font-family: 'Caveat', cursive;
+    font-size: clamp(1.3rem, 5vw, 1.8rem);
+    text-shadow: 1px 1px 6px rgba(0,0,0,0.25);
+    animation: pulseHint 2s ease-in-out infinite;
+  }
+  @keyframes pulseHint {
+    0%, 100% { opacity: 0.7; }
+    50%      { opacity: 1; }
+  }
+
+  /* ---------- Общий стиль экранов ---------- */
+  .screen {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    transform: translateY(40px) scale(0.92);
+    pointer-events: none;
+    transition: opacity 0.7s ease, transform 0.7s ease;
+    overflow-y: auto;
+  }
+  .screen.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .screen.hidden {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.92);
+    pointer-events: none;
+  }
+
+  /* Финальный экран: выравниваем по верху, чтобы чек не обрезался */
+  #finalScreen {
+    justify-content: flex-start;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  #finalScreen .final-wrapper {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 700px;
+    margin: auto;
+    position: relative;
+  }
+
+  h1 {
+    color: #fff;
+    text-shadow: 1px 1px 6px rgba(0,0,0,0.25);
+    font-size: clamp(1.4rem, 5.5vw, 2.4rem);
+    line-height: 1.3;
+    margin: 0 0 clamp(20px, 5vh, 40px);
+    font-weight: 600;
+    padding: 0 10px;
+  }
+
+  .buttons {
+    display: flex;
+    gap: clamp(15px, 5vw, 30px);
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  button {
+    padding: clamp(14px, 3vw, 18px) clamp(30px, 8vw, 50px);
+    font-size: clamp(1rem, 3.5vw, 1.3rem);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .btn-primary {
+    background: #e63946;
+    color: white;
+    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4);
+  }
+  .btn-primary:hover { box-shadow: 0 10px 28px rgba(230, 57, 70, 0.6); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  #yes {
+    background: #e63946;
+    color: white;
+    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4);
+    animation: heartbeat 1.4s ease-in-out infinite;
+  }
+
+  @keyframes heartbeat {
+    0%   { transform: scale(1);    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4); }
+    14%  { transform: scale(1.12); box-shadow: 0 10px 28px rgba(230, 57, 70, 0.55); }
+    28%  { transform: scale(1);    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4); }
+    42%  { transform: scale(1.12); box-shadow: 0 10px 28px rgba(230, 57, 70, 0.55); }
+    70%  { transform: scale(1);    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4); }
+    100% { transform: scale(1);    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4); }
+  }
+
+  #yes:hover { box-shadow: 0 10px 28px rgba(230, 57, 70, 0.6); }
+  #yes:active {
+    animation-play-state: paused;
+    transform: scale(0.97);
+  }
+
+  #no {
+    background: white;
+    color: #e63946;
+    box-shadow: 0 6px 20px rgba(255,255,255,0.5);
+    position: relative;
+    transition: left 0.25s ease, top 0.25s ease, transform 0.25s ease, opacity 0.5s ease;
+  }
+
+  @keyframes shake {
+    0%   { transform: translate(0, 0)    rotate(0deg); }
+    15%  { transform: translate(-4px, 2px) rotate(-3deg); }
+    30%  { transform: translate(4px, -2px) rotate(3deg); }
+    45%  { transform: translate(-4px, -2px) rotate(-2deg); }
+    60%  { transform: translate(4px, 2px)  rotate(2deg); }
+    75%  { transform: translate(-2px, 1px) rotate(-1deg); }
+    100% { transform: translate(0, 0)    rotate(0deg); }
+  }
+  #no.shake { animation: shake 0.35s ease-in-out; }
+
+  #result {
+    margin-top: clamp(25px, 6vh, 40px);
+    font-family: 'Caveat', cursive;
+    font-size: clamp(1.6rem, 7vw, 2.6rem);
+    color: #fff;
+    text-shadow: 1px 1px 8px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    padding: 0 15px;
+  }
+  #result.show { opacity: 1; }
+
+  /* ---------- Карточки-выборы ---------- */
+  .card-panel {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    padding: clamp(20px, 5vw, 40px);
+    box-shadow: 0 15px 40px rgba(180, 40, 60, 0.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(15px, 4vw, 25px);
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .card-panel label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    font-family: 'Caveat', cursive;
+    font-size: clamp(1.2rem, 4vw, 1.6rem);
+    color: #b03050;
+  }
+
+  .card-panel input[type="date"],
+  .card-panel input[type="time"],
+  .card-panel input[type="text"] {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: clamp(1rem, 3.5vw, 1.2rem);
+    font-family: 'Playfair Display', serif;
+    border: 2px solid #ffb3c1;
+    border-radius: 12px;
+    background: #fffdf7;
+    color: #7a2035;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card-panel input:focus {
+    border-color: #e63946;
+    box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.2);
+  }
+
+  /* ---------- Экран выбора занятия ---------- */
+  .activities {
+    display: flex;
+    gap: clamp(12px, 3vw, 25px);
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .activity-card {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 20px;
+    padding: clamp(15px, 3vw, 25px) clamp(12px, 2vw, 20px);
+    width: clamp(120px, 28vw, 180px);
+    cursor: pointer;
+    border: 3px solid transparent;
+    box-shadow: 0 10px 30px rgba(180, 40, 60, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .activity-card:hover {
+    transform: translateY(-6px) scale(1.04);
+    box-shadow: 0 15px 40px rgba(180, 40, 60, 0.35);
+  }
+  .activity-card.selected {
+    border-color: #e63946;
+    transform: translateY(-6px) scale(1.06);
+    box-shadow: 0 15px 40px rgba(230, 57, 70, 0.45);
+  }
+
+  .activity-emoji {
+    font-size: clamp(2.5rem, 9vw, 4rem);
+    line-height: 1;
+  }
+
+  .activity-label {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: clamp(0.95rem, 3.5vw, 1.2rem);
+    color: #b03050;
+  }
+
+  /* ---------- Кнопки-варианты (вертикально) ---------- */
+  .option-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .option-btn {
+    background: #fffdf7;
+    color: #b03050;
+    border: 2px solid #ffb3c1;
+    border-radius: 16px;
+    padding: 14px 20px;
+    font-size: clamp(1rem, 3.5vw, 1.15rem);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+  }
+  .option-btn:hover {
+    border-color: #e63946;
+    background: #fff0f3;
+    box-shadow: 0 6px 18px rgba(230, 57, 70, 0.15);
+  }
+  .option-btn:active { transform: scale(0.97); }
+  .option-btn.selected {
+    border-color: #e63946;
+    background: #ffe3e8;
+    box-shadow: 0 6px 18px rgba(230, 57, 70, 0.25);
+  }
+
+  .option-emoji {
+    font-size: clamp(1.2rem, 4vw, 1.5rem);
+    line-height: 1;
+  }
+
+  /* ---------- Кнопка «Назад» ---------- */
+  .back-btn {
+    background: transparent;
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.7);
+    border-radius: 50px;
+    padding: 10px 22px;
+    font-size: clamp(0.9rem, 3vw, 1.05rem);
+    cursor: pointer;
+    margin-top: clamp(18px, 4vh, 30px);
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+  }
+  .back-btn:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: #fff;
+  }
+  .back-btn:active { transform: scale(0.95); }
+
+  /* ============================================================
+     ЧЕК
+     ============================================================ */
+  .final-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 420px;
+    gap: 18px;
+  }
+
+  .receipt {
+    background: #fffdf7;
+    color: #4a2030;
+    width: 100%;
+    padding: 24px 22px 22px;
+    border-radius: 6px;
+    box-shadow: 0 20px 50px rgba(150, 30, 60, 0.35);
+    font-family: 'Courier New', Courier, monospace;
+    text-align: left;
+    position: relative;
+  }
+
+  /* Верхняя и нижняя «перфорация» */
+  .receipt::before,
+  .receipt::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background:
+      radial-gradient(circle 6px at 6px 0, transparent 5px, #fffdf7 5.5px) repeat-x;
+    background-size: 18px 12px;
+  }
+  .receipt::before {
+    top: -1px;
+    transform: rotate(180deg);
+  }
+  .receipt::after {
+    bottom: -1px;
+  }
+
+  .receipt-header {
+    text-align: center;
+    border-bottom: 2px dashed #c98a9a;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+
+  .receipt-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #e63946;
+    text-transform: uppercase;
+  }
+
+  .receipt-number {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: #8a5a6a;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  .receipt-provider {
+    font-family: 'Courier New', monospace;
+    font-size: 0.78rem;
+    color: #8a5a6a;
+    line-height: 1.45;
+    margin-top: 10px;
+    text-align: center;
+  }
+  .receipt-provider .provider-label {
+    display: block;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #b03050;
+    margin-bottom: 2px;
+  }
+  .receipt-provider .provider-name {
+    display: block;
+    color: #6a3040;
+    font-weight: 700;
+  }
+  .receipt-provider .provider-specialist {
+    display: block;
+    color: #8a5a6a;
+    margin-top: 6px;
+  }
+  .receipt-provider .provider-phone {
+    display: block;
+    color: #6a3040;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .receipt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 0.92rem;
+    line-height: 1.35;
+  }
+
+  .receipt-row .label {
+    color: #8a5a6a;
+    flex-shrink: 0;
+  }
+
+  .receipt-row .value {
+    text-align: right;
+    font-weight: 700;
+    color: #4a2030;
+    word-break: break-word;
+  }
+
+  .receipt-divider {
+    border-top: 2px dashed #c98a9a;
+    margin: 14px 0;
+  }
+
+  .receipt-section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #e63946;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .receipt-rules {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #6a3040;
+  }
+  .receipt-rules li {
+    padding: 4px 0 4px 18px;
+    position: relative;
+  }
+  .receipt-rules li::before {
+    content: '♥';
+    position: absolute;
+    left: 0;
+    color: #e63946;
+    font-size: 0.75rem;
+    top: 5px;
+  }
+
+  .receipt-payment {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 2px dashed #c98a9a;
+  }
+
+  .receipt-payment-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    padding: 3px 0;
+  }
+  .receipt-payment-row .pay-label {
+    color: #8a5a6a;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .receipt-payment-row .pay-dots {
+    flex: 1;
+    border-bottom: 1px dotted #c98a9a;
+    margin: 0 6px 3px;
+    min-width: 20px;
+  }
+  .receipt-payment-row .pay-value {
+    color: #4a2030;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .receipt-smile {
+    text-align: center;
+    margin-top: 14px;
+  }
+
+  .receipt-smile-label {
+    font-size: 0.8rem;
+    color: #8a5a6a;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .receipt-smile-value {
+    font-family: 'Caveat', cursive;
+    font-size: 1.9rem;
+    color: #e63946;
+    font-weight: 700;
+    margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .receipt-footer {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 0.75rem;
+    color: #a07a86;
+    font-family: 'Courier New', monospace;
+    line-height: 1.4;
+  }
+
+  /* Кнопки под чеком */
+  .receipt-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    align-items: center;
+  }
+
+  .save-btn {
+    background: #e63946;
+    color: white;
+    box-shadow: 0 6px 20px rgba(230, 57, 70, 0.4);
+    width: 100%;
+    max-width: 280px;
+    padding: 14px 28px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .save-btn:hover { box-shadow: 0 10px 28px rgba(230, 57, 70, 0.6); }
+  .save-btn:active { transform: scale(0.97); }
+
+  .save-hint {
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    color: #fff;
+    opacity: 0.9;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+  }
+
+  @media (max-width: 420px) {
+    .buttons { flex-direction: column; align-items: center; }
+    button { width: 80%; }
+    .card-panel { padding: 20px; }
+    .activity-card { width: 30%; min-width: 95px; }
+    .option-btn { font-size: 0.95rem; padding: 12px 16px; }
+    .back-btn { padding: 8px 18px; }
+
+    /* --- Компактный чек на телефоне --- */
+    #finalScreen {
+      padding: 14px 12px;
+    }
+    .final-wrapper {
+      gap: 12px;
+    }
+    .receipt {
+      padding: 18px 14px 16px;
+    }
+    .receipt-header {
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .receipt-title { font-size: 1.05rem; }
+    .receipt-number { font-size: 0.72rem; }
+    .receipt-provider { font-size: 0.68rem; line-height: 1.35; }
+    .receipt-row { font-size: 0.8rem; padding: 4px 0; }
+    .receipt-section-title { font-size: 0.72rem; margin-bottom: 6px; }
+    .receipt-rules { font-size: 0.78rem; line-height: 1.4; }
+    .receipt-rules li { padding: 3px 0 3px 16px; }
+    .receipt-payment-row { font-size: 0.8rem; }
+    .receipt-smile-value { font-size: 1.6rem; }
+    .receipt-footer { font-size: 0.68rem; margin-top: 10px; }
+    .receipt-divider { margin: 10px 0; }
+    .receipt-payment { margin-top: 12px; padding-top: 10px; }
+    .receipt-smile { margin-top: 10px; }
+  }
+</style>
+</head>
+<body>
+
+  <canvas id="hearts-canvas"></canvas>
+
+  <!-- Стартовый экран с конвертом -->
+  <div class="envelope-screen" id="envelopeScreen">
+    <div class="envelope" id="envelope">
+      <div class="envelope-body"></div>
+      <div class="envelope-note">
+        <span class="note-text">Это тебе...</span>
+      </div>
+      <div class="envelope-flap"></div>
+      <div class="envelope-seal">💌</div>
+    </div>
+    <div class="hint">Нажми на конверт ✨</div>
+  </div>
+
+  <!-- Экран 1: приглашение -->
+  <div class="screen" id="inviteScreen">
+    <div class="content">
+      <h1>Пойдёшь со мной на свидание? 🌹</h1>
+      <div class="buttons">
+        <button id="yes">Да 💖</button>
+        <button id="no">Нет</button>
+      </div>
+      <div id="result">Ура!!! ✨</div>
+    </div>
+  </div>
+
+  <!-- Экран 2: выбор даты и времени -->
+  <div class="screen" id="dateScreen">
+    <div class="content">
+      <h1>И так… Когда ты свободна? 📅</h1>
+      <div class="card-panel">
+        <label>
+          Дата
+          <input type="date" id="dateInput">
+        </label>
+        <label>
+          Время
+          <input type="time" id="timeInput">
+        </label>
+        <button class="btn-primary" id="confirmDateBtn">Готово 💖</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Экран 3: выбор занятия -->
+  <div class="screen" id="activityScreen">
+    <div class="content">
+      <h1>Чем займёмся? 🎉</h1>
+      <div class="activities">
+        <div class="activity-card" data-activity="walk">
+          <div class="activity-emoji">🌳</div>
+          <div class="activity-label">Прогулка</div>
+        </div>
+        <div class="activity-card" data-activity="cinema">
+          <div class="activity-emoji">🎬</div>
+          <div class="activity-label">Кино</div>
+        </div>
+        <div class="activity-card" data-activity="dinner">
+          <div class="activity-emoji">🍷</div>
+          <div class="activity-label">Ужин</div>
+        </div>
+      </div>
+      <button class="back-btn" data-back="dateScreen">← Назад</button>
+    </div>
+  </div>
+
+  <!-- ===== Ветка «Прогулка» ===== -->
+  <div class="screen" id="walkScreen">
+    <div class="content">
+      <h1>Здорово! 🌳</h1>
+      <div class="option-list">
+        <button class="option-btn" data-walk="simple">Мы просто погуляем</button>
+        <button class="option-btn" data-walk="active">Это будет активная прогулка</button>
+      </div>
+      <button class="back-btn" data-back="activityScreen">← Назад</button>
+    </div>
+  </div>
+
+  <div class="screen" id="walkSimpleScreen">
+    <div class="content">
+      <div class="msg-text">Хорошо, где мы встретимся?</div>
+      <div class="card-panel">
+        <input type="text" id="walkSimpleInput" placeholder="Напиши место встречи…">
+        <button class="btn-primary" id="walkSimpleBtn">Дальше 💖</button>
+      </div>
+      <button class="back-btn" data-back="walkScreen">← Назад</button>
+    </div>
+  </div>
+
+  <div class="screen" id="walkActiveScreen">
+    <div class="content">
+      <div class="msg-text">Ух ты, что будем делать?</div>
+      <div class="card-panel">
+        <input type="text" id="walkActiveInput" placeholder="Напиши, что предлагаешь…">
+        <button class="btn-primary" id="walkActiveBtn">Дальше 💖</button>
+      </div>
+      <button class="back-btn" data-back="walkScreen">← Назад</button>
+    </div>
+  </div>
+
+  <!-- ===== Ветка «Кино» ===== -->
+  <div class="screen" id="cinemaScreen">
+    <div class="content">
+      <h1>Что посмотрим? 🎬</h1>
+      <div class="option-list">
+        <button class="option-btn" data-genre="Комедия"><span class="option-emoji">😂</span> Комедия</button>
+        <button class="option-btn" data-genre="Ужасы"><span class="option-emoji">👻</span> Ужасы</button>
+        <button class="option-btn" data-genre="Романтика"><span class="option-emoji">💕</span> Романтика</button>
+        <button class="option-btn" data-genre="Фантастика"><span class="option-emoji">🚀</span> Фантастика</button>
+        <button class="option-btn" data-genre="Детектив"><span class="option-emoji">🕵️</span> Детектив</button>
+        <button class="option-btn" data-genre="Мультик"><span class="option-emoji">🧸</span> Мультик</button>
+      </div>
+      <button class="back-btn" data-back="activityScreen">← Назад</button>
+    </div>
+  </div>
+
+  <!-- ===== Ветка «Ужин» ===== -->
+  <div class="screen" id="dinnerScreen">
+    <div class="content">
+      <h1>Отлично, сытая девушка — счастливая девушка! Итак, что бы ты хотела? 🍽️</h1>
+      <div class="option-list">
+        <button class="option-btn" data-cuisine="Азиатскую кухню"><span class="option-emoji">🥢</span> Азиатскую кухню</button>
+        <button class="option-btn" data-cuisine="Грузинскую кухню"><span class="option-emoji">🍷</span> Грузинскую кухню</button>
+        <button class="option-btn" data-cuisine="Итальянскую кухню"><span class="option-emoji">🍝</span> Итальянскую кухню</button>
+        <button class="option-btn" data-cuisine="ХОЧУ МЯСО!"><span class="option-emoji">🥩</span> ХОЧУ МЯСО!</button>
+      </div>
+      <div class="card-panel" style="margin-top: 18px;">
+        <input type="text" id="dinnerCustomInput" placeholder="Или напиши свой вариант…">
+        <button class="btn-primary" id="dinnerCustomBtn">Отправить 💖</button>
+      </div>
+      <button class="back-btn" data-back="activityScreen">← Назад</button>
+    </div>
+  </div>
+
+  <!-- ===== Финальный экран в виде чека ===== -->
+  <div class="screen" id="finalScreen">
+    <div class="final-wrapper">
+      <div class="receipt" id="receipt">
+        <div class="receipt-header">
+          <div class="receipt-title">Свидание</div>
+          <div class="receipt-number">Электронный чек №001</div>
+          <div class="receipt-provider">
+            <span class="provider-label">Поставщик обнимашек:</span>
+            <span class="provider-name">Федеральная служба по контролю за настроением<br>ПАО «СберНервы»</span>
+            <span class="provider-specialist">Ведущий специалист по выслушиванию жалоб</span>
+            <span class="provider-phone">+7 (904) 147-29-14</span>
+          </div>
+        </div>
+
+        <div class="receipt-row">
+          <span class="label">Дата:</span>
+          <span class="value" id="rDate">—</span>
+        </div>
+        <div class="receipt-row">
+          <span class="label">Время:</span>
+          <span class="value" id="rTime">—</span>
+        </div>
+        <div class="receipt-row">
+          <span class="label">Занятие:</span>
+          <span class="value" id="rActivity">—</span>
+        </div>
+        <div class="receipt-row" id="rExtraRow" style="display:none;">
+          <span class="label">Детали:</span>
+          <span class="value" id="rExtra">—</span>
+        </div>
+
+        <div class="receipt-divider"></div>
+
+        <div class="receipt-section-title">Правила свидания</div>
+        <ul class="receipt-rules">
+          <li>Следующее свидание бронируется прямо на этом.</li>
+          <li>Разговор о будущем не возбраняется.</li>
+          <li>За опоздание расплачиваются поцелуями.</li>
+        </ul>
+
+        <div class="receipt-payment">
+          <div class="receipt-section-title">Оплата</div>
+          <div class="receipt-payment-row">
+            <span class="pay-label">Способ оплаты</span>
+            <span class="pay-dots"></span>
+            <span class="pay-value">Безналичный</span>
+          </div>
+          <div class="receipt-smile">
+            <div class="receipt-smile-label">Валюта</div>
+            <div class="receipt-smile-value">Улыбкой 😊</div>
+          </div>
+        </div>
+
+        <div class="receipt-footer">
+          Спасибо за согласие!<br>
+          Жду с нетерпением ♥
+        </div>
+      </div>
+
+      <div class="receipt-actions">
+        <button class="save-btn" id="saveBtn">📸 Сохранить чек</button>
+        <div class="save-hint" id="saveHint"></div>
+        <button class="back-btn" data-back="activityScreen">← Назад</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     НАСТРОЙКИ WEB3FORMS
+     Вставь свой Access Key с web3forms.com
+     ============================================================ */
+  var WEB3FORMS_KEY = '28f9a4c1-7c32-4b93-b5d5-be5cfcfa541c';
+
+  function web3Notify(text) {
+    if (!WEB3FORMS_KEY || WEB3FORMS_KEY.indexOf('ВСТАВЬ') === 0) return;
+
+    // Убираем HTML-теги, так как почта их не поймёт
+    var plainText = text.replace(/<\/?[^>]+(>|$)/g, "");
+
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_key: WEB3FORMS_KEY,
+        subject: '💌 Приглашение на свидание: новый ответ',
+        message: plainText
+      })
+    }).catch(function (err) {
+      console.warn('Web3Forms notify failed:', err);
+    });
+  }
+
+  /* ---------- Канвас ---------- */
+  var canvas = document.getElementById('hearts-canvas');
+  var ctx = canvas.getContext('2d');
+  var hearts = [];
+
+  var backgroundActive = false;
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  var HEART_COUNT = window.innerWidth < 500 ? 18 : 30;
+  var COLORS = ['#ff6b81', '#ff3b5c', '#ff8fa3', '#ffb3c1', '#e63946'];
+
+  function createHeart() {
+    return {
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height,
+      size: 8 + Math.random() * 14,
+      speed: 0.5 + Math.random() * 1.2,
+      sway: Math.random() * Math.PI * 2,
+      swaySpeed: 0.01 + Math.random() * 0.02,
+      opacity: 0.4 + Math.random() * 0.5,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      vx: 0,
+      vy: 0,
+      isBurst: false
+    };
+  }
+
+  function startBackgroundHearts() {
+    if (backgroundActive) return;
+    backgroundActive = true;
+
+    var created = 0;
+    var interval = setInterval(function () {
+      if (created >= HEART_COUNT) {
+        clearInterval(interval);
+        return;
+      }
+      var h = createHeart();
+      h.y = -20 - Math.random() * 200;
+      hearts.push(h);
+      created++;
+    }, 80);
+  }
+
+  function drawHeart(x, y, size, color, opacity) {
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    var s = size;
+    ctx.moveTo(x, y + s * 0.3);
+    ctx.bezierCurveTo(x, y, x - s / 2, y, x - s / 2, y + s * 0.3);
+    ctx.bezierCurveTo(x - s / 2, y + s * 0.65, x, y + s * 0.9, x, y + s * 1.1);
+    ctx.bezierCurveTo(x, y + s * 0.9, x + s / 2, y + s * 0.65, x + s / 2, y + s * 0.3);
+    ctx.bezierCurveTo(x + s / 2, y, x, y, x, y + s * 0.3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function animateHearts() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (var i = hearts.length - 1; i >= 0; i--) {
+      var h = hearts[i];
+
+      if (h.isBurst) {
+        h.x += h.vx;
+        h.y += h.vy;
+        h.vx *= 0.98;
+        h.vy += 0.08;
+        h.opacity -= 0.008;
+
+        if (h.opacity <= 0 || h.y > canvas.height + 50) {
+          hearts.splice(i, 1);
+          continue;
+        }
+        drawHeart(h.x, h.y, h.size, h.color, h.opacity);
+      } else {
+        h.y += h.speed;
+        h.sway += h.swaySpeed;
+        var swayX = Math.sin(h.sway) * 15;
+
+        if (h.y > canvas.height + 30) {
+          if (backgroundActive) {
+            Object.assign(h, createHeart());
+            h.y = -30;
+          } else {
+            hearts.splice(i, 1);
+            continue;
+          }
+        }
+        drawHeart(h.x + swayX, h.y, h.size, h.color, h.opacity);
+      }
+    }
+
+    requestAnimationFrame(animateHearts);
+  }
+  animateHearts();
+
+  function burstHearts(originX, originY) {
+    var BURST_COUNT = 60;
+    for (var i = 0; i < BURST_COUNT; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var speed = 4 + Math.random() * 8;
+      var h = createHeart();
+      h.x = originX;
+      h.y = originY;
+      h.vx = Math.cos(angle) * speed;
+      h.vy = Math.sin(angle) * speed - 3;
+      h.size = 8 + Math.random() * 16;
+      h.opacity = 0.85 + Math.random() * 0.15;
+      h.isBurst = true;
+      hearts.push(h);
+    }
+  }
+
+  /* ---------- Утилиты переходов ---------- */
+  var screens = document.querySelectorAll('.screen');
+
+  function showScreen(id) {
+    screens.forEach(function (s) {
+      s.classList.remove('visible');
+      s.classList.add('hidden');
+    });
+    var el = document.getElementById(id);
+    el.classList.remove('hidden');
+    requestAnimationFrame(function () {
+      el.classList.add('visible');
+    });
+  }
+
+  /* ---------- Конверт ---------- */
+  var envelopeScreen = document.getElementById('envelopeScreen');
+  var envelope = document.getElementById('envelope');
+  var envelopeOpened = false;
+
+  envelope.addEventListener('click', function () {
+    if (envelopeOpened) return;
+    envelopeOpened = true;
+    envelope.classList.add('open');
+    web3Notify('💌 Она открыла конверт!');
+    setTimeout(function () {
+      envelopeScreen.classList.add('hidden');
+      showScreen('inviteScreen');
+    }, 1600);
+  });
+
+  /* ---------- Кнопки «Назад» ---------- */
+  document.querySelectorAll('[data-back]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = btn.getAttribute('data-back');
+      showScreen(target);
+    });
+  });
+
+  /* ---------- Экран 1: Да / Нет ---------- */
+  var noBtn = document.getElementById('no');
+  var yesBtn = document.getElementById('yes');
+  var result = document.getElementById('result');
+
+  var noCount = 0;
+  var NO_MAX = 3;
+
+  function handleNo() {
+    if (noCount >= NO_MAX) return;
+    noCount++;
+
+    if (noCount < NO_MAX) {
+      noBtn.classList.remove('shake');
+      void noBtn.offsetWidth;
+      noBtn.classList.add('shake');
+    }
+
+    if (noCount >= NO_MAX) {
+      noBtn.style.opacity = '0';
+      noBtn.style.transform = 'scale(0.3)';
+      noBtn.style.pointerEvents = 'none';
+      setTimeout(function () { noBtn.style.display = 'none'; }, 500);
+      return;
+    }
+
+    var scale = 1 - noCount * 0.25;
+    noBtn.style.transform = 'scale(' + scale + ')';
+
+    var maxX = window.innerWidth - noBtn.offsetWidth - 10;
+    var maxY = window.innerHeight - noBtn.offsetHeight - 10;
+    noBtn.style.position = 'fixed';
+    noBtn.style.left = Math.max(10, Math.random() * maxX) + 'px';
+    noBtn.style.top = Math.max(10, Math.random() * maxY) + 'px';
+  }
+
+  noBtn.addEventListener('mouseover', handleNo);
+  noBtn.addEventListener('touchstart', function (e) { e.preventDefault(); handleNo(); }, { passive: false });
+  noBtn.addEventListener('click', function (e) { e.preventDefault(); handleNo(); });
+
+  yesBtn.addEventListener('click', function () {
+    var rect = yesBtn.getBoundingClientRect();
+    burstHearts(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    startBackgroundHearts();
+
+    web3Notify('💖 Она нажала «Да»!');
+
+    result.classList.add('show');
+    noBtn.style.display = 'none';
+    yesBtn.style.display = 'none';
+
+    setTimeout(function () { burstHearts(window.innerWidth * 0.3, window.innerHeight * 0.4); }, 300);
+    setTimeout(function () { burstHearts(window.innerWidth * 0.7, window.innerHeight * 0.4); }, 600);
+
+    setTimeout(function () { showScreen('dateScreen'); }, 1600);
+  });
+
+  /* ---------- Экран 2: дата и время ---------- */
+  var dateInput = document.getElementById('dateInput');
+  var timeInput = document.getElementById('timeInput');
+  var confirmDateBtn = document.getElementById('confirmDateBtn');
+
+  (function setMinDate() {
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth() + 1).padStart(2, '0');
+    var dd = String(today.getDate()).padStart(2, '0');
+    dateInput.min = yyyy + '-' + mm + '-' + dd;
+  })();
+
+  var selectedDateText = '';
+  var selectedTimeText = '';
+
+  confirmDateBtn.addEventListener('click', function () {
+    var d = dateInput.value;
+    var t = timeInput.value;
+
+    if (!d || !t) {
+      confirmDateBtn.textContent = 'Выбери дату и время 😊';
+      setTimeout(function () { confirmDateBtn.textContent = 'Готово 💖'; }, 1800);
+      return;
+    }
+
+    var chosen = new Date(d + 'T' + t);
+    if (chosen < new Date()) {
+      confirmDateBtn.textContent = 'Эта дата уже прошла 😅';
+      setTimeout(function () { confirmDateBtn.textContent = 'Готово 💖'; }, 1800);
+      return;
+    }
+
+    var months = ['января','февраля','марта','апреля','мая','июня',
+                  'июля','августа','сентября','октября','ноября','декабря'];
+    selectedDateText = chosen.getDate() + ' ' + months[chosen.getMonth()];
+    selectedTimeText = String(chosen.getHours()).padStart(2,'0') + ':' +
+                       String(chosen.getMinutes()).padStart(2,'0');
+
+    web3Notify('📅 Она выбрала дату: ' + selectedDateText + ', в ' + selectedTimeText);
+
+    showScreen('activityScreen');
+  });
+
+  /* ---------- Экран 3: занятие ---------- */
+  var activityCards = document.querySelectorAll('.activity-card');
+
+  activityCards.forEach(function (card) {
+    card.addEventListener('click', function () {
+      card.classList.add('selected');
+      var type = card.getAttribute('data-activity');
+
+      var label = type === 'walk' ? 'Прогулка 🌳'
+                : type === 'cinema' ? 'Кино 🎬'
+                : 'Ужин 🍷';
+      web3Notify('🎉 Она выбрала занятие: ' + label);
+
+      setTimeout(function () {
+        if (type === 'walk')  showScreen('walkScreen');
+        if (type === 'cinema') showScreen('cinemaScreen');
+        if (type === 'dinner') showScreen('dinnerScreen');
+      }, 300);
+    });
+  });
+
+  /* ---------- Ветка «Прогулка» ---------- */
+  document.querySelectorAll('[data-walk]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.classList.add('selected');
+      var kind = btn.getAttribute('data-walk');
+      var label = kind === 'simple' ? 'Просто погуляем' : 'Активная прогулка';
+      web3Notify('🌳 Прогулка: ' + label);
+
+      setTimeout(function () {
+        showScreen(kind === 'simple' ? 'walkSimpleScreen' : 'walkActiveScreen');
+      }, 250);
+    });
+  });
+
+  var walkSimpleInput = document.getElementById('walkSimpleInput');
+  var walkSimpleBtn = document.getElementById('walkSimpleBtn');
+  var walkActiveInput = document.getElementById('walkActiveInput');
+  var walkActiveBtn = document.getElementById('walkActiveBtn');
+
+  /* ---------- Заполнение чека и показ финала ---------- */
+  function showFinal(message, activityLabel, extra) {
+    document.getElementById('rDate').textContent = selectedDateText || '—';
+    document.getElementById('rTime').textContent = selectedTimeText || '—';
+    document.getElementById('rActivity').textContent = activityLabel;
+
+    var extraRow = document.getElementById('rExtraRow');
+    var extraVal = document.getElementById('rExtra');
+    if (extra) {
+      extraVal.textContent = extra;
+      extraRow.style.display = 'flex';
+    } else {
+      extraRow.style.display = 'none';
+    }
+
+    var mailText = '✅ Итог приглашения\n'
+               + '📅 ' + selectedDateText + ', в ' + selectedTimeText + '\n'
+               + '🎯 ' + activityLabel
+               + (extra ? '\n📝 ' + extra : '');
+    web3Notify(mailText);
+
+    var saveHint = document.getElementById('saveHint');
+    saveHint.textContent = '';
+
+    showScreen('finalScreen');
+
+    setTimeout(function () { burstHearts(window.innerWidth * 0.5, window.innerHeight * 0.4); }, 200);
+    setTimeout(function () { burstHearts(window.innerWidth * 0.25, window.innerHeight * 0.5); }, 500);
+    setTimeout(function () { burstHearts(window.innerWidth * 0.75, window.innerHeight * 0.5); }, 800);
+  }
+
+  walkSimpleBtn.addEventListener('click', function () {
+    var val = walkSimpleInput.value.trim();
+    if (!val) {
+      walkSimpleBtn.textContent = 'Напиши место 😊';
+      setTimeout(function () { walkSimpleBtn.textContent = 'Дальше 💖'; }, 1800);
+      return;
+    }
+    web3Notify('📍 Место встречи: ' + val);
+    showFinal('Отлично, встречаемся там! 💕', '🌳 Просто погуляем', '📍 ' + val);
+  });
+
+  walkActiveBtn.addEventListener('click', function () {
+    var val = walkActiveInput.value.trim();
+    if (!val) {
+      walkActiveBtn.textContent = 'Напиши идею 😊';
+      setTimeout(function () { walkActiveBtn.textContent = 'Дальше 💖'; }, 1800);
+      return;
+    }
+    web3Notify('💡 Идея активной прогулки: ' + val);
+    showFinal('Ух ты, звучит здорово! 💕', '🏃 Активная прогулка', '💡 ' + val);
+  });
+
+  /* ---------- Ветка «Кино» ---------- */
+  document.querySelectorAll('[data-genre]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.classList.add('selected');
+      var genre = btn.getAttribute('data-genre');
+      web3Notify('🎭 Жанр кино: ' + genre);
+      setTimeout(function () {
+        showFinal('Отличный выбор! 🎬', '🎬 Кино', '🎭 ' + genre);
+      }, 300);
+    });
+  });
+
+  /* ---------- Ветка «Ужин» ---------- */
+  var dinnerMessages = {
+    'Азиатскую кухню': 'Класс! У меня как раз есть пара отличных мест 🥢',
+    'Грузинскую кухню': 'Хм, я знаю одно местечко… 🍷',
+    'Итальянскую кухню': 'Здорово! Есть классное местечко, я бы ещё раз хотел туда сходить 🍝',
+    'ХОЧУ МЯСО!': 'Воу! Одобряю такой подход, есть пара мест и одно достаточно необычное 🥩'
+  };
+
+  document.querySelectorAll('[data-cuisine]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.classList.add('selected');
+      var cuisine = btn.getAttribute('data-cuisine');
+      web3Notify('🍽️ Кухня: ' + cuisine);
+      setTimeout(function () {
+        showFinal(dinnerMessages[cuisine] || 'Отличный выбор!', '🍷 Ужин', '🍽️ ' + cuisine);
+      }, 300);
+    });
+  });
+
+  var dinnerCustomInput = document.getElementById('dinnerCustomInput');
+  var dinnerCustomBtn = document.getElementById('dinnerCustomBtn');
+
+  dinnerCustomBtn.addEventListener('click', function () {
+    var val = dinnerCustomInput.value.trim();
+    if (!val) {
+      dinnerCustomBtn.textContent = 'Напиши вариант 😊';
+      setTimeout(function () { dinnerCustomBtn.textContent = 'Отправить 💖'; }, 1800);
+      return;
+    }
+    web3Notify('🍽️ Свой вариант кухни: ' + val);
+    showFinal('Здорово, значит попробуем ' + val + '! 💕', '🍷 Ужин', '🍽️ ' + val);
+  });
+
+  /* ---------- Сохранение чека в картинку ---------- */
+  var saveBtn = document.getElementById('saveBtn');
+  var saveHint = document.getElementById('saveHint');
+
+  saveBtn.addEventListener('click', function () {
+    if (typeof html2canvas === 'undefined') {
+      saveHint.textContent = 'Сохранение недоступно. Сделай скриншот 📱';
+      return;
+    }
+
+    saveHint.textContent = 'Готовлю картинку…';
+
+    var receiptEl = document.getElementById('receipt');
+
+    var originalShadow = receiptEl.style.boxShadow;
+    receiptEl.style.boxShadow = 'none';
+
+    html2canvas(receiptEl, {
+      backgroundColor: null,
+      scale: window.devicePixelRatio > 1 ? 2 : 3,
+      useCORS: true,
+      logging: false
+    }).then(function (canvasEl) {
+      receiptEl.style.boxShadow = originalShadow;
+
+      var link = document.createElement('a');
+      link.download = 'svidanie-chek.png';
+      link.href = canvasEl.toDataURL('image/png');
+      link.click();
+
+      saveHint.textContent = 'Готово! Чек сохранён 💾';
+      setTimeout(function () { saveHint.textContent = ''; }, 3000);
+    }).catch(function (err) {
+      receiptEl.style.boxShadow = originalShadow;
+      console.warn('html2canvas failed:', err);
+      saveHint.textContent = 'Не получилось сохранить. Сделай скриншот 📱';
+    });
+  });
+})();
+</script>
+</body>
+</html>
