@@ -1001,30 +1001,35 @@
      ============================================================ */
   var WEB3FORMS_KEY = '28f9a4c1-7c32-4b93-b5d5-be5cfcfa541c';
 
-  function web3Notify(text) {
+  // Функция для отправки ОДНОГО письма в конце
+  function sendFinalEmail(details) {
     if (!WEB3FORMS_KEY || WEB3FORMS_KEY.indexOf('ВСТАВЬ') === 0) return;
-
-    // Убираем HTML-теги, так как почта их не поймёт
-    var plainText = text.replace(/<\/?[^>]+(>|$)/g, "");
 
     fetch('https://api.web3forms.com/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         access_key: WEB3FORMS_KEY,
-        subject: '💌 Приглашение на свидание: новый ответ',
-        message: plainText
+        subject: '🎉 Она прошла приглашение до конца!',
+        message: details
       })
     }).catch(function (err) {
       console.warn('Web3Forms notify failed:', err);
     });
   }
 
+  /* ---------- Сборщик данных (сюда пишем всё, что она выбирает) ---------- */
+  var inviteData = {
+    date: '',
+    time: '',
+    activity: '',
+    details: ''
+  };
+
   /* ---------- Канвас ---------- */
   var canvas = document.getElementById('hearts-canvas');
   var ctx = canvas.getContext('2d');
   var hearts = [];
-
   var backgroundActive = false;
 
   function resizeCanvas() {
@@ -1056,13 +1061,9 @@
   function startBackgroundHearts() {
     if (backgroundActive) return;
     backgroundActive = true;
-
     var created = 0;
     var interval = setInterval(function () {
-      if (created >= HEART_COUNT) {
-        clearInterval(interval);
-        return;
-      }
+      if (created >= HEART_COUNT) { clearInterval(interval); return; }
       var h = createHeart();
       h.y = -20 - Math.random() * 200;
       hearts.push(h);
@@ -1087,40 +1088,23 @@
 
   function animateHearts() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     for (var i = hearts.length - 1; i >= 0; i--) {
       var h = hearts[i];
-
       if (h.isBurst) {
-        h.x += h.vx;
-        h.y += h.vy;
-        h.vx *= 0.98;
-        h.vy += 0.08;
-        h.opacity -= 0.008;
-
-        if (h.opacity <= 0 || h.y > canvas.height + 50) {
-          hearts.splice(i, 1);
-          continue;
-        }
+        h.x += h.vx; h.y += h.vy;
+        h.vx *= 0.98; h.vy += 0.08; h.opacity -= 0.008;
+        if (h.opacity <= 0 || h.y > canvas.height + 50) { hearts.splice(i, 1); continue; }
         drawHeart(h.x, h.y, h.size, h.color, h.opacity);
       } else {
-        h.y += h.speed;
-        h.sway += h.swaySpeed;
+        h.y += h.speed; h.sway += h.swaySpeed;
         var swayX = Math.sin(h.sway) * 15;
-
         if (h.y > canvas.height + 30) {
-          if (backgroundActive) {
-            Object.assign(h, createHeart());
-            h.y = -30;
-          } else {
-            hearts.splice(i, 1);
-            continue;
-          }
+          if (backgroundActive) { Object.assign(h, createHeart()); h.y = -30; }
+          else { hearts.splice(i, 1); continue; }
         }
         drawHeart(h.x + swayX, h.y, h.size, h.color, h.opacity);
       }
     }
-
     requestAnimationFrame(animateHearts);
   }
   animateHearts();
@@ -1131,30 +1115,19 @@
       var angle = Math.random() * Math.PI * 2;
       var speed = 4 + Math.random() * 8;
       var h = createHeart();
-      h.x = originX;
-      h.y = originY;
-      h.vx = Math.cos(angle) * speed;
-      h.vy = Math.sin(angle) * speed - 3;
-      h.size = 8 + Math.random() * 16;
-      h.opacity = 0.85 + Math.random() * 0.15;
-      h.isBurst = true;
-      hearts.push(h);
+      h.x = originX; h.y = originY;
+      h.vx = Math.cos(angle) * speed; h.vy = Math.sin(angle) * speed - 3;
+      h.size = 8 + Math.random() * 16; h.opacity = 0.85 + Math.random() * 0.15;
+      h.isBurst = true; hearts.push(h);
     }
   }
 
-  /* ---------- Утилиты переходов ---------- */
   var screens = document.querySelectorAll('.screen');
-
   function showScreen(id) {
-    screens.forEach(function (s) {
-      s.classList.remove('visible');
-      s.classList.add('hidden');
-    });
+    screens.forEach(function (s) { s.classList.remove('visible'); s.classList.add('hidden'); });
     var el = document.getElementById(id);
     el.classList.remove('hidden');
-    requestAnimationFrame(function () {
-      el.classList.add('visible');
-    });
+    requestAnimationFrame(function () { el.classList.add('visible'); });
   }
 
   /* ---------- Конверт ---------- */
@@ -1166,7 +1139,6 @@
     if (envelopeOpened) return;
     envelopeOpened = true;
     envelope.classList.add('open');
-    web3Notify('💌 Она открыла конверт!');
     setTimeout(function () {
       envelopeScreen.classList.add('hidden');
       showScreen('inviteScreen');
@@ -1185,20 +1157,17 @@
   var noBtn = document.getElementById('no');
   var yesBtn = document.getElementById('yes');
   var result = document.getElementById('result');
-
   var noCount = 0;
   var NO_MAX = 3;
 
   function handleNo() {
     if (noCount >= NO_MAX) return;
     noCount++;
-
     if (noCount < NO_MAX) {
       noBtn.classList.remove('shake');
       void noBtn.offsetWidth;
       noBtn.classList.add('shake');
     }
-
     if (noCount >= NO_MAX) {
       noBtn.style.opacity = '0';
       noBtn.style.transform = 'scale(0.3)';
@@ -1206,10 +1175,8 @@
       setTimeout(function () { noBtn.style.display = 'none'; }, 500);
       return;
     }
-
     var scale = 1 - noCount * 0.25;
     noBtn.style.transform = 'scale(' + scale + ')';
-
     var maxX = window.innerWidth - noBtn.offsetWidth - 10;
     var maxY = window.innerHeight - noBtn.offsetHeight - 10;
     noBtn.style.position = 'fixed';
@@ -1225,8 +1192,6 @@
     var rect = yesBtn.getBoundingClientRect();
     burstHearts(rect.left + rect.width / 2, rect.top + rect.height / 2);
     startBackgroundHearts();
-
-    web3Notify('💖 Она нажала «Да»!');
 
     result.classList.add('show');
     noBtn.style.display = 'none';
@@ -1251,9 +1216,6 @@
     dateInput.min = yyyy + '-' + mm + '-' + dd;
   })();
 
-  var selectedDateText = '';
-  var selectedTimeText = '';
-
   confirmDateBtn.addEventListener('click', function () {
     var d = dateInput.value;
     var t = timeInput.value;
@@ -1273,11 +1235,9 @@
 
     var months = ['января','февраля','марта','апреля','мая','июня',
                   'июля','августа','сентября','октября','ноября','декабря'];
-    selectedDateText = chosen.getDate() + ' ' + months[chosen.getMonth()];
-    selectedTimeText = String(chosen.getHours()).padStart(2,'0') + ':' +
-                       String(chosen.getMinutes()).padStart(2,'0');
-
-    web3Notify('📅 Она выбрала дату: ' + selectedDateText + ', в ' + selectedTimeText);
+    inviteData.date = chosen.getDate() + ' ' + months[chosen.getMonth()];
+    inviteData.time = String(chosen.getHours()).padStart(2,'0') + ':' +
+                      String(chosen.getMinutes()).padStart(2,'0');
 
     showScreen('activityScreen');
   });
@@ -1290,10 +1250,9 @@
       card.classList.add('selected');
       var type = card.getAttribute('data-activity');
 
-      var label = type === 'walk' ? 'Прогулка 🌳'
-                : type === 'cinema' ? 'Кино 🎬'
-                : 'Ужин 🍷';
-      web3Notify('🎉 Она выбрала занятие: ' + label);
+      if (type === 'walk') inviteData.activity = 'Прогулка 🌳';
+      if (type === 'cinema') inviteData.activity = 'Кино 🎬';
+      if (type === 'dinner') inviteData.activity = 'Ужин 🍷';
 
       setTimeout(function () {
         if (type === 'walk')  showScreen('walkScreen');
@@ -1308,9 +1267,7 @@
     btn.addEventListener('click', function () {
       btn.classList.add('selected');
       var kind = btn.getAttribute('data-walk');
-      var label = kind === 'simple' ? 'Просто погуляем' : 'Активная прогулка';
-      web3Notify('🌳 Прогулка: ' + label);
-
+      inviteData.activity = kind === 'simple' ? 'Прогулка (просто погуляем) 🌳' : 'Активная прогулка 🏃';
       setTimeout(function () {
         showScreen(kind === 'simple' ? 'walkSimpleScreen' : 'walkActiveScreen');
       }, 250);
@@ -1322,30 +1279,37 @@
   var walkActiveInput = document.getElementById('walkActiveInput');
   var walkActiveBtn = document.getElementById('walkActiveBtn');
 
-  /* ---------- Заполнение чека и показ финала ---------- */
-  function showFinal(message, activityLabel, extra) {
-    document.getElementById('rDate').textContent = selectedDateText || '—';
-    document.getElementById('rTime').textContent = selectedTimeText || '—';
-    document.getElementById('rActivity').textContent = activityLabel;
+  /* ---------- ФУНКЦИЯ ФИНАЛА (собирает всё и отправляет ОДНО письмо) ---------- */
+  function showFinal(detailsText) {
+    inviteData.details = detailsText;
+
+    // Заполняем визуальный чек
+    document.getElementById('rDate').textContent = inviteData.date || '—';
+    document.getElementById('rTime').textContent = inviteData.time || '—';
+    document.getElementById('rActivity').textContent = inviteData.activity;
 
     var extraRow = document.getElementById('rExtraRow');
     var extraVal = document.getElementById('rExtra');
-    if (extra) {
-      extraVal.textContent = extra;
+    if (inviteData.details) {
+      extraVal.textContent = inviteData.details;
       extraRow.style.display = 'flex';
     } else {
       extraRow.style.display = 'none';
     }
 
-    var mailText = '✅ Итог приглашения\n'
-               + '📅 ' + selectedDateText + ', в ' + selectedTimeText + '\n'
-               + '🎯 ' + activityLabel
-               + (extra ? '\n📝 ' + extra : '');
-    web3Notify(mailText);
+    // Формируем КРАСИВОЕ письмо
+    var emailText = "Ура! Она прошла всё приглашение.\n\n" +
+                    "📅 Дата: " + inviteData.date + "\n" +
+                    "⏰ Время: " + inviteData.time + "\n" +
+                    "🎯 Занятие: " + inviteData.activity + "\n" +
+                    (inviteData.details ? "📝 Детали: " + inviteData.details + "\n" : "") +
+                    "\nСкорее пиши ей! 💕";
 
-    var saveHint = document.getElementById('saveHint');
-    saveHint.textContent = '';
+    // ОТПРАВЛЯЕМ ОДНО ПИСЬМО
+    sendFinalEmail(emailText);
 
+    // Сброс и показ экрана
+    document.getElementById('saveHint').textContent = '';
     showScreen('finalScreen');
 
     setTimeout(function () { burstHearts(window.innerWidth * 0.5, window.innerHeight * 0.4); }, 200);
@@ -1355,24 +1319,14 @@
 
   walkSimpleBtn.addEventListener('click', function () {
     var val = walkSimpleInput.value.trim();
-    if (!val) {
-      walkSimpleBtn.textContent = 'Напиши место 😊';
-      setTimeout(function () { walkSimpleBtn.textContent = 'Дальше 💖'; }, 1800);
-      return;
-    }
-    web3Notify('📍 Место встречи: ' + val);
-    showFinal('Отлично, встречаемся там! 💕', '🌳 Просто погуляем', '📍 ' + val);
+    if (!val) { walkSimpleBtn.textContent = 'Напиши место 😊'; setTimeout(function () { walkSimpleBtn.textContent = 'Дальше 💖'; }, 1800); return; }
+    showFinal('📍 Место: ' + val);
   });
 
   walkActiveBtn.addEventListener('click', function () {
     var val = walkActiveInput.value.trim();
-    if (!val) {
-      walkActiveBtn.textContent = 'Напиши идею 😊';
-      setTimeout(function () { walkActiveBtn.textContent = 'Дальше 💖'; }, 1800);
-      return;
-    }
-    web3Notify('💡 Идея активной прогулки: ' + val);
-    showFinal('Ух ты, звучит здорово! 💕', '🏃 Активная прогулка', '💡 ' + val);
+    if (!val) { walkActiveBtn.textContent = 'Напиши идею 😊'; setTimeout(function () { walkActiveBtn.textContent = 'Дальше 💖'; }, 1800); return; }
+    showFinal('💡 Идея: ' + val);
   });
 
   /* ---------- Ветка «Кино» ---------- */
@@ -1380,10 +1334,8 @@
     btn.addEventListener('click', function () {
       btn.classList.add('selected');
       var genre = btn.getAttribute('data-genre');
-      web3Notify('🎭 Жанр кино: ' + genre);
-      setTimeout(function () {
-        showFinal('Отличный выбор! 🎬', '🎬 Кино', '🎭 ' + genre);
-      }, 300);
+      inviteData.activity = 'Кино 🎬';
+      setTimeout(function () { showFinal('🎭 Жанр: ' + genre); }, 300);
     });
   });
 
@@ -1399,10 +1351,8 @@
     btn.addEventListener('click', function () {
       btn.classList.add('selected');
       var cuisine = btn.getAttribute('data-cuisine');
-      web3Notify('🍽️ Кухня: ' + cuisine);
-      setTimeout(function () {
-        showFinal(dinnerMessages[cuisine] || 'Отличный выбор!', '🍷 Ужин', '🍽️ ' + cuisine);
-      }, 300);
+      inviteData.activity = 'Ужин 🍷';
+      setTimeout(function () { showFinal('🍽️ Кухня: ' + cuisine); }, 300);
     });
   });
 
@@ -1411,13 +1361,9 @@
 
   dinnerCustomBtn.addEventListener('click', function () {
     var val = dinnerCustomInput.value.trim();
-    if (!val) {
-      dinnerCustomBtn.textContent = 'Напиши вариант 😊';
-      setTimeout(function () { dinnerCustomBtn.textContent = 'Отправить 💖'; }, 1800);
-      return;
-    }
-    web3Notify('🍽️ Свой вариант кухни: ' + val);
-    showFinal('Здорово, значит попробуем ' + val + '! 💕', '🍷 Ужин', '🍽️ ' + val);
+    if (!val) { dinnerCustomBtn.textContent = 'Напиши вариант 😊'; setTimeout(function () { dinnerCustomBtn.textContent = 'Отправить 💖'; }, 1800); return; }
+    inviteData.activity = 'Ужин 🍷';
+    showFinal('🍽️ Свой вариант: ' + val);
   });
 
   /* ---------- Сохранение чека в картинку ---------- */
@@ -1429,11 +1375,8 @@
       saveHint.textContent = 'Сохранение недоступно. Сделай скриншот 📱';
       return;
     }
-
     saveHint.textContent = 'Готовлю картинку…';
-
     var receiptEl = document.getElementById('receipt');
-
     var originalShadow = receiptEl.style.boxShadow;
     receiptEl.style.boxShadow = 'none';
 
@@ -1444,12 +1387,10 @@
       logging: false
     }).then(function (canvasEl) {
       receiptEl.style.boxShadow = originalShadow;
-
       var link = document.createElement('a');
       link.download = 'svidanie-chek.png';
       link.href = canvasEl.toDataURL('image/png');
       link.click();
-
       saveHint.textContent = 'Готово! Чек сохранён 💾';
       setTimeout(function () { saveHint.textContent = ''; }, 3000);
     }).catch(function (err) {
